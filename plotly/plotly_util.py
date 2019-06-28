@@ -38,17 +38,19 @@ def plot_2d_ts(df, to_excl=[], xlab='Dates', ylab='', title='', filename = '2d-t
 
 def plot_2d_bar(df, x, y, xlab ='', ylab='', title='', pct=False, filename='2d-bar.html', inline=False):
     # Each bar stands for a value of x and is split up by y values
+    df['dummy'] = 1
     x_uniq = df[x].unique().tolist()
+    x_uniq = pd.to_datetime(x_uniq) if df.dtypes[x] == 'datetime64[ns]' else x_uniq
     y_uniq = df[y].unique().tolist()
     
     multi_index = pd.MultiIndex.from_product([x_uniq, y_uniq], names=[x, y])
-    df_sub = df.groupby([x, y])[y].count()
+    df_sub = df.groupby([x, y])['dummy'].sum()
     pct_func = lambda x: x / float(x.sum()) if pct else x
-    df_sub = df_sub.groupby(level=0).apply(pct_func).reindex(multi_index, fill_value=0)
+    df_sub_2 = df_sub.groupby(level=0).apply(pct_func).reindex(multi_index, fill_value=0)
     
     data = [go.Bar(
         x = [str(x) for x in x_uniq],
-        y = df_sub[:, y_uniq_n],
+        y = df_sub_2[:, y_uniq_n],
         name = y_uniq_n
         ) for y_uniq_n in y_uniq]
     
@@ -62,7 +64,6 @@ def plot_2d_bar(df, x, y, xlab ='', ylab='', title='', pct=False, filename='2d-b
         iplot(fig, filename=filename)
     else:
         plot(fig, filename=filename)
-    return df_sub
 
 
 def plot_3d_scatter(df, x, y, z, filename = '3d-scatter.html', inline=False):
