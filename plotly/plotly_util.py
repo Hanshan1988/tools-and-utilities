@@ -55,8 +55,8 @@ def plot_2d_bar(df, x, y, xlab ='', ylab='', title='', pct=False, filename='2d-b
         ) for y_uniq_n in y_uniq]
     
     layout = go.Layout(
-        barmode='stack',
-        'xaxis':{'title':x})
+        barmode='stack'
+        )
     
     fig = go.Figure(data=data, layout=layout)
     
