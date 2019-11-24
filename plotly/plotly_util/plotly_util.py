@@ -69,3 +69,31 @@ def plot_2d_bar(df, x, y, xlab ='', ylab='', title='', pct=False, filename='2d-b
 
 def plot_3d_scatter(df, x, y, z, filename = '3d-scatter.html', inline=False):
     pass
+
+
+def plot_depth_chart(df, filename='depth-chart.html', inline=False):
+    # df has type, price and volume columns
+    df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
+    df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
+    # convert to cumulative volumes
+    buy_price_list = df_buy['price'].tolist()
+    sell_price_list = df_sell['price'].tolist()
+    buy_vol_list = df_buy['volume'].cumsum().tolist()
+    sell_vol_list = df_sell['volume'].cumsum().tolist()
+    # plot
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=buy_price_list, y=buy_vol_list,
+                             line={"shape": 'vh'},
+                             fill='tozeroy',
+                             mode='lines+markers',
+                             name='lines+markers'))
+    fig.add_trace(go.Scatter(x=sell_price_list, y=sell_vol_list,
+                             line={"shape": 'vh'},
+                             fill='tozeroy',
+                             mode='lines+markers',
+                             name='lines+markers'))
+    if inline:
+        init_notebook_mode()
+        iplot(fig, filename=filename)
+    else:
+        plot(fig, filename=filename)
