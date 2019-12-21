@@ -71,16 +71,15 @@ def plot_3d_scatter(df, x, y, z, filename = '3d-scatter.html', inline=False):
     pass
 
 
-def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
-    # # df has type, price and volume columns
-    # df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
-    # df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
-    # # convert to cumulative volumes
-    # buy_price_list = df_buy['price'].tolist()
-    # sell_price_list = df_sell['price'].tolist()
-    # buy_vol_list = df_buy['volume'].cumsum().tolist()
-    # sell_vol_list = df_sell['volume'].cumsum().tolist()
-    
+def plot_depth_chart(df, filename='depth-chart.html', inline=False):
+    # df has type, price and volume columns
+    df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
+    df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
+    # convert to cumulative volumes
+    buy_price_list = df_buy['price'].tolist()
+    sell_price_list = df_sell['price'].tolist()
+    buy_vol_list = df_buy['volume'].cumsum().tolist()
+    sell_vol_list = df_sell['volume'].cumsum().tolist()
     # plot
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=buy_price_list, y=buy_vol_list,
