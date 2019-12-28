@@ -6,6 +6,21 @@ from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import cufflinks as cf
 
 
+def convert_buy_sell_prices(df, top_n=10):
+	# assumes df in the shape of one row per snapshot in time with 10 buy prices and 10 sell prices
+	buy_price_cols = ['buy_price_{0}'.format(i) for i in range(top_n)]
+	sell_price_cols = ['sell_price_{0}'.format(i) for i in range(top_n)]
+	buy_vol_cols = ['buy_volume_{0}'.format(i) for i in range(top_n)]
+	sell_vol_cols = ['sell_volume_{0}'.format(i) for i in range(top_n)]
+
+	buy_price_values = df[buy_price_cols].values[0]
+	sell_price_values = df[sell_price_cols].values[0]
+	buy_vol_values = df[buy_vol_cols].values[0]
+	sell_vol_values = df[sell_vol_cols].values[0]
+
+	return buy_price_values, buy_vol_values, sell_price_values, sell_vol_values
+
+
 def plot_2d_scatter(df, x, y, xlab = '', ylab='', title='', filename='2d-scatter.html', inline=False):
     # Create a trace
     trace = go.Scattergl(
@@ -182,7 +197,7 @@ def plot_moving_depth_chart(df, filename='moving-depth-chart.html', inline=False
 
     # make data first frame
     time = times[0]
-    df_sub = df_trading_samp[df_trading_samp.timestamp == time]
+    df_sub = df[df.timestamp == time]
     buy_price_values, buy_vol_values, sell_price_values, sell_vol_values = convert_buy_sell_prices(df_sub)
     buy_indx = np.argsort(buy_price_values)[::-1]
     sell_indx = np.argsort(sell_price_values)
@@ -203,7 +218,7 @@ def plot_moving_depth_chart(df, filename='moving-depth-chart.html', inline=False
     for time in times:
         frame = {'data': [], 'name': str(time)}
 
-        df_sub = df_trading_samp[df_trading_samp.timestamp == time]
+        df_sub = df[df.timestamp == time]
         buy_price_values, buy_vol_values, sell_price_values, sell_vol_values = convert_buy_sell_prices(df_sub)
 
         buy_indx = np.argsort(buy_price_values)[::-1]
@@ -238,6 +253,6 @@ def plot_moving_depth_chart(df, filename='moving-depth-chart.html', inline=False
 
     if inline:
         init_notebook_mode(connected=True)
-        iplot(fig, filename=filename)
+        iplot(figure, filename=filename)
     else:
-        plot(fig, filename=filename)
+        plot(figure, filename=filename)
