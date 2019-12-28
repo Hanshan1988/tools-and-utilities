@@ -1,5 +1,6 @@
 # import plotly.plotly as py
 import pandas as pd
+import numpy as np
 import plotly.graph_objs as go
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import cufflinks as cf
@@ -71,29 +72,172 @@ def plot_3d_scatter(df, x, y, z, filename = '3d-scatter.html', inline=False):
     pass
 
 
-def plot_depth_chart(df, filename='depth-chart.html', inline=False):
-    # df has type, price and volume columns
-    df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
-    df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
-    # convert to cumulative volumes
-    buy_price_list = df_buy['price'].tolist()
-    sell_price_list = df_sell['price'].tolist()
-    buy_vol_list = df_buy['volume'].cumsum().tolist()
-    sell_vol_list = df_sell['volume'].cumsum().tolist()
+def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
+    # # df has type, price and volume columns
+    # df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
+    # df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
+    # # convert to cumulative volumes
+    # buy_price_list = df_buy['price'].tolist()
+    # sell_price_list = df_sell['price'].tolist()
+    # buy_vol_list = df_buy['volume'].cumsum().tolist()
+    # sell_vol_list = df_sell['volume'].cumsum().tolist()
+
+    buy_indx = np.argsort(buy_price_list)[::-1]
+    sell_indx = np.argsort(sell_price_list)
+
+    buy_price_list = buy_price_list[buy_indx]
+    buy_vol_list = np.cumsum(buy_vol_list[buy_indx])
+    sell_price_list = sell_price_list[sell_indx]
+    sell_vol_list = np.cumsum(sell_vol_list[sell_indx])
+
     # plot
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=buy_price_list, y=buy_vol_list,
                              line={"shape": 'hv'},
                              fill='tozeroy',
                              mode='lines+markers',
-                             name='lines+markers'))
+                             name='bid prices'))
     fig.add_trace(go.Scatter(x=sell_price_list, y=sell_vol_list,
                              line={"shape": 'hv'},
                              fill='tozeroy',
                              mode='lines+markers',
-                             name='lines+markers'))
+                             name='ask prices'))
     if inline:
-        init_notebook_mode()
+        init_notebook_mode(connected=True)
+        iplot(fig, filename=filename)
+    else:
+        plot(fig, filename=filename)
+        
+        
+def plot_moving_depth_chart(df, filename='moving-depth-chart.html', inline=False):
+    # Takes in a standard df from commsec website
+    price_cols = [col for col in df.columns if 'price' in col]
+    min_price = df[price_cols].values.min()
+    max_price = df[price_cols].values.max()
+    
+    buy_vol_max = df[[col for col in df.columns if 'buy_volume' in col]].sum(axis=1).max()
+    sell_vol_max = df[[col for col in df.columns if 'sell_volume' in col]].sum(axis=1).max()
+    max_vol = buy_vol_max if buy_vol_max > sell_vol_max else sell_vol_max
+
+    times = df.timestamp.tolist()
+
+    # make figure
+    figure = {'data': [], 'layout': {}, 'frames': []}
+
+    # fill in most of layout
+    figure['layout']['xaxis'] = {'range': [min_price, max_price], 'title': 'Price'}
+    figure['layout']['yaxis'] = {'range': [0, max_vol], 'title': 'Volume'}
+    figure['layout']['hovermode'] = 'closest'
+    figure['layout']['sliders'] = {
+        'args': ['transition', {'duration': 100, 'easing': 'cubic-in-out'}],
+        'initialValue': times[0],
+        'plotlycommand': 'animate',
+        'values': times,
+        'visible': True
+    }
+    figure['layout']['updatemenus'] = [
+        {
+            'buttons': [
+                {
+                    'args': [None, {'frame': {'duration': 500, 'redraw': False},
+                             'fromcurrent': True, 'transition': {'duration': 300, 'easing': 'quadratic-in-out'}}],
+                    'label': 'Play',
+                    'method': 'animate'
+                },
+                {
+                    'args': [[None], {'frame': {'duration': 0, 'redraw': False}, 'mode': 'immediate',
+                    'transition': {'duration': 0}}],
+                    'label': 'Pause',
+                    'method': 'animate'
+                }
+            ],
+            'direction': 'left',
+            'pad': {'r': 10, 't': 87},
+            'showactive': False,
+            'type': 'buttons',
+            'x': 0.1,
+            'xanchor': 'right',
+            'y': 0,
+            'yanchor': 'top'
+        }
+    ]
+
+    sliders_dict = {
+        'active': 0,
+        'yanchor': 'top',
+        'xanchor': 'left',
+        'currentvalue': {
+            'font': {'size': 20},
+            'prefix': 'Time:',
+            'visible': True,
+            'xanchor': 'right'
+        },
+        'transition': {'duration': 300, 'easing': 'cubic-in-out'},
+        'pad': {'b': 10, 't': 50},
+        'len': 0.9,
+        'x': 0.1,
+        'y': 0,
+        'steps': []
+    }
+
+    # make data first frame
+    time = times[0]
+    df_sub = df_trading_samp[df_trading_samp.timestamp == time]
+    buy_price_values, buy_vol_values, sell_price_values, sell_vol_values = convert_buy_sell_prices(df_sub)
+    buy_indx = np.argsort(buy_price_values)[::-1]
+    sell_indx = np.argsort(sell_price_values)
+    buy_price_list = buy_price_values[buy_indx]
+    buy_vol_list = np.cumsum(buy_vol_values[buy_indx])
+    sell_price_list = sell_price_values[sell_indx]
+    sell_vol_list = np.cumsum(sell_vol_values[sell_indx])
+
+    for price, vol, name in zip([buy_price_list, sell_price_list], [buy_vol_list, sell_vol_list], ['buy', 'sell']):
+        data_dict = {'x':list(price), 'y':list(vol),
+                                 'line' :{"shape": 'hv'},
+                                 'fill' :'tozeroy',
+                                 'mode' :'lines+markers',
+                                 'name' :name}
+        figure['data'].append(data_dict)
+
+    # make frames
+    for time in times:
+        frame = {'data': [], 'name': str(time)}
+
+        df_sub = df_trading_samp[df_trading_samp.timestamp == time]
+        buy_price_values, buy_vol_values, sell_price_values, sell_vol_values = convert_buy_sell_prices(df_sub)
+
+        buy_indx = np.argsort(buy_price_values)[::-1]
+        sell_indx = np.argsort(sell_price_values)
+        buy_price_list = buy_price_values[buy_indx]
+        buy_vol_list = np.cumsum(buy_vol_values[buy_indx])
+        sell_price_list = sell_price_values[sell_indx]
+        sell_vol_list = np.cumsum(sell_vol_values[sell_indx])
+
+        # plot
+        for price, vol, name in zip([buy_price_list, sell_price_list], [buy_vol_list, sell_vol_list], ['buy', 'sell']):
+            data_dict = {'x':list(price), 'y':list(vol),
+                                     'line' :{"shape": 'hv'},
+                                     'fill' :'tozeroy',
+                                     'mode' :'lines+markers',
+                                     'name' :name}
+
+            frame['data'].append(data_dict)
+
+        figure['frames'].append(frame)
+        slider_step = {'args': [
+            [time],
+            {'frame': {'duration': 300, 'redraw': False},
+             'mode': 'immediate',
+           'transition': {'duration': 300}}
+         ],
+         'label': time,
+         'method': 'animate'}
+        sliders_dict['steps'].append(slider_step)
+
+    figure['layout']['sliders'] = [sliders_dict]
+
+    if inline:
+        init_notebook_mode(connected=True)
         iplot(fig, filename=filename)
     else:
         plot(fig, filename=filename)
