@@ -43,7 +43,7 @@ def plot_2d_ts(df, to_excl=[], xlab='Dates', ylab='', title='', filename = '2d-t
     cols_plot = list(set(all_cols) - set(to_excl))
     df_plot = df[cols_plot]
     
-    data = df.iplot(asFigure=True, kind='scatter', xTitle=xlab, yTitle=ylab, title=title)
+    data = df.iplot(asFigure=True, kind='scatter', xTitle=xlab, yTitle=ylab, title=title, showlegend=True)
     
     if inline:
         init_notebook_mode()
