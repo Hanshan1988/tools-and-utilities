@@ -1,9 +1,10 @@
 # import plotly.plotly as py
 import pandas as pd
 import numpy as np
-import plotly.graph_objs as go
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import cufflinks as cf
+import plotly.graph_objs as go
+from datetime import datetime
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
 
 def convert_buy_sell_prices(df, top_n=10):
@@ -83,8 +84,25 @@ def plot_2d_bar(df, x, y, xlab ='', ylab='', title='', pct=False, filename='2d-b
         plot(fig, filename=filename)
 
 
-def plot_3d_scatter(df, x, y, z, filename = '3d-scatter.html', inline=False):
+def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
+
+
+def plot_candlestick_single(input, stock='', filename='candlestick.html', inline=False):
+    # stock in the form 'AAPL'
+    if len(stock) > 0:
+        prefix = stock + '.'
+    df = pd.read_csv(input)
+    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
+                        open=df['{}Open'.format(prefix)],
+                        high=df['{}High'.format(prefix)],
+                        low=df['{}Low'.format(prefix)],
+                        close=df['{}Close'.format(prefix)])])
+    if inline:
+        init_notebook_mode()
+        iplot(fig, filename=filename)
+    else:
+        plot(fig, filename=filename)
 
 
 def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
