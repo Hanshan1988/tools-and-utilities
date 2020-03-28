@@ -88,11 +88,10 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
 
 
-def plot_candlestick_single(input, stock='', filename='candlestick.html', inline=False):
+def plot_candlestick_single(df, stock='', filename='candlestick.html', inline=False):
     # stock in the form 'AAPL'
     if len(stock) > 0:
         prefix = stock + '.'
-    df = pd.read_csv(input)
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
                         open=df['{}Open'.format(prefix)],
                         high=df['{}High'.format(prefix)],
