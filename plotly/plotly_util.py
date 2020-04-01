@@ -95,7 +95,8 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                         open=df['{}Open'.format(prefix)],
                         high=df['{}High'.format(prefix)],
                         low=df['{}Low'.format(prefix)],
-                        close=df['{}Close'.format(prefix)])], title=title)
+                        close=df['{}Close'.format(prefix)])])
+    fig.update_layout(title=title)
     if inline:
         init_notebook_mode()
         iplot(fig, filename=filename)
