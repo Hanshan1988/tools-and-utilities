@@ -95,12 +95,12 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                         open=df['{}Open'.format(prefix)],
                         high=df['{}High'.format(prefix)],
                         low=df['{}Low'.format(prefix)],
-                        close=df['{}Close'.format(prefix)])])
+                        close=df['{}Close'.format(prefix)])], title=title)
     if inline:
         init_notebook_mode()
-        iplot(fig, filename=filename, title=title)
+        iplot(fig, filename=filename)
     else:
-        plot(fig, filename=filename, title=title)
+        plot(fig, filename=filename)
 
 
 def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
