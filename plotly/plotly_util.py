@@ -88,7 +88,7 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
 
 
-def plot_candlestick_single(df, stock='', ts_col='Date', filename='candlestick.html', inline=False):
+def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candlestick.html', inline=False):
     # stock in the form 'AAPL'
     prefix = stock + '.' if len(stock) > 0 else stock
     fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
@@ -98,9 +98,9 @@ def plot_candlestick_single(df, stock='', ts_col='Date', filename='candlestick.h
                         close=df['{}Close'.format(prefix)])])
     if inline:
         init_notebook_mode()
-        iplot(fig, filename=filename)
+        iplot(fig, filename=filename, title=title)
     else:
-        plot(fig, filename=filename)
+        plot(fig, filename=filename, title=title)
 
 
 def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
