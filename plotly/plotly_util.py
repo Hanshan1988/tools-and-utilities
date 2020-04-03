@@ -97,6 +97,9 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                         low=df['{}Low'.format(prefix)],
                         close=df['{}Close'.format(prefix)])])
     # fig.update_layout(title=title)
+    fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
+                    marker=dict(size=5, color="Blue"))
+
     if inline:
         init_notebook_mode()
         iplot(fig, filename=filename)
