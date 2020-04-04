@@ -89,7 +89,8 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
 
 
 def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candlestick.html', 
-                            highlight_times=[], price_senses=[], inline=False):
+                            highlight_times=[], highlight_period=pd.Timedelta(minutes=1), 
+                            price_senses=[], hovers=[], inline=False):
     # stock in the form 'AAPL'
     prefix = stock + '.' if len(stock) > 0 else stock
     fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
@@ -97,12 +98,13 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                         high=df['{}High'.format(prefix)],
                         low=df['{}Low'.format(prefix)],
                         close=df['{}Close'.format(prefix)])])
-    # fig.update_layout(title=title)
+
+    fig.layout.update(title=title)
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
                     marker=dict(size=5, color="Blue"))
 
     if len(highlight_times) > 0:
-        colours = ["LightSalmon" if price_sense == 0 else "DarkRed" for price_sense in price_senses]
+        colours = ["Navy" if price_sense == 1 else "LightSalmon" for price_sense in price_senses]
         # for highlight_time in highlight_times:
         fig.layout.update(
             shapes=[
@@ -113,13 +115,22 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                     yref="paper",
                     x0=highlight_time,
                     y0=0,
-                    x1=highlight_time + pd.Timedelta(minutes=1),
+                    x1=highlight_time + highlight_period,
                     y1=1,
                     fillcolor=colour,
                     opacity=0.5,
                     layer="below",
-                    line_width=0
-                    ) for highlight_time, colour in zip(highlight_times, colours)])
+                    line_width=0,
+                    ) for highlight_time, colour in zip(highlight_times, colours)],
+            annotations=[
+                dict(x=highlight_time,
+                     y=df['{}High'.format(prefix)].max(),
+                     xref="x",
+                     yref="y",
+                     text=hover,
+                     showarrow=False,
+                     ax=0,
+                     ay=20) for highlight_time, hover in zip(highlight_times, hovers)])
 
     if inline:
         init_notebook_mode()
