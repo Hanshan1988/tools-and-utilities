@@ -88,7 +88,8 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
 
 
-def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candlestick.html', inline=False):
+def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candlestick.html', 
+                            highlight_times=[], price_senses=[], inline=False):
     # stock in the form 'AAPL'
     prefix = stock + '.' if len(stock) > 0 else stock
     fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
@@ -99,6 +100,26 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
     # fig.update_layout(title=title)
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
                     marker=dict(size=5, color="Blue"))
+
+    if len(highlight_times) > 0:
+        colours = ["LightSalmon" if price_sense == 0 else "DarkRed" for price_sense in price_senses]
+        # for highlight_time in highlight_times:
+        fig.layout.update(
+            shapes=[
+                dict(type="rect",
+                    # x-reference is assigned to the x-values
+                    xref="x",
+                    # y-reference is assigned to the plot paper [0,1]
+                    yref="paper",
+                    x0=highlight_time,
+                    y0=0,
+                    x1=highlight_time + pd.Timedelta(minutes=1),
+                    y1=1,
+                    fillcolor=colour,
+                    opacity=0.5,
+                    layer="below",
+                    line_width=0
+                    ) for highlight_time, colour in zip(highlight_times, colours)])
 
     if inline:
         init_notebook_mode()
