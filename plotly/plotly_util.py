@@ -5,7 +5,7 @@ import cufflinks as cf
 import plotly.graph_objs as go
 from datetime import datetime
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
-
+from plotly.subplots import make_subplots
 
 def convert_buy_sell_prices(df, top_n=10):
 	# assumes df in the shape of one row per snapshot in time with 10 buy prices and 10 sell prices
@@ -88,30 +88,51 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
 
 
-def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candlestick.html', 
+def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candle.html', 
                             highlight_times=[], highlight_period=pd.Timedelta(minutes=1), 
-                            price_senses=[], hovers=[], inline=False):
-    # stock in the form 'AAPL'
+                            price_senses=[], hovers=[], df_txn=pd.DataFrame(), inline=False):
+    # Original candlestick
     prefix = stock + '.' if len(stock) > 0 else stock
-    fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
+
+
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
+    #                     open=df['{}Open'.format(prefix)],
+    #                     high=df['{}High'.format(prefix)],
+    #                     low=df['{}Low'.format(prefix)],
+    #                     close=df['{}Close'.format(prefix)])])
+    fig.add_trace(go.Candlestick(x=df[ts_col],
                         open=df['{}Open'.format(prefix)],
                         high=df['{}High'.format(prefix)],
                         low=df['{}Low'.format(prefix)],
-                        close=df['{}Close'.format(prefix)])])
-
+                        close=df['{}Close'.format(prefix)]), secondary_y=False)
     fig.layout.update(title=title)
+    # Add closing price as line 
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
-                    marker=dict(size=5, color="Blue"))
-
+                    name='Closing Price', marker=dict(size=5, color="Cyan"))
+    # Add volumes data
+    # fig.add_bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume')
+    fig.add_trace(go.Bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume', 
+                         marker=dict(color="Blue")), secondary_y=True)
+    fig['layout']['yaxis2'].update(title='', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False)
+    # Add past transactions
+    if df_txn.shape[0] > 0:
+        df_txn_b = df_txn[df_txn.action == 'B'].reset_index(drop=True)
+        df_txn_s = df_txn[df_txn.action == 'S'].reset_index(drop=True)
+        if df_txn_b.shape[0] > 0:
+            fig.add_scatter(x=df_txn_b['Date'], y=df_txn_b['price'], mode='markers', name='Action - Buy',
+                            marker=dict(size=8, color="Blue"))
+        if df_txn_s.shape[0] > 0:
+            fig.add_scatter(x=df_txn_s['Date'], y=df_txn_s['price'], mode='markers', name='Action - Sell',
+                            marker=dict(size=8, color="Red"))
+    # Highlight and annotate annoucements
     if len(highlight_times) > 0:
         colours = ["Navy" if price_sense == 1 else "LightSalmon" for price_sense in price_senses]
-        # for highlight_time in highlight_times:
         fig.layout.update(
             shapes=[
                 dict(type="rect",
-                    # x-reference is assigned to the x-values
                     xref="x",
-                    # y-reference is assigned to the plot paper [0,1]
                     yref="paper",
                     x0=highlight_time,
                     y0=0,
