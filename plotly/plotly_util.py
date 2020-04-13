@@ -110,14 +110,14 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
     fig['layout']['yaxis1'].update(title='Price ($)')
     # Add closing price as line 
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
-                    name='Closing Price', marker=dict(size=5, color="Cyan"))
+                    name='Closing Price', marker=dict(size=3, color="Cyan"), line = dict(width=2))
     # Add volumes data
     # fig.add_bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume')
-    open_higher = (df['{}Open'.format(prefix)] < df['{}Close'.format(prefix)])
-    fig.add_trace(go.Bar(x=df[ts_col][open_higher], y=df['{}Volume'.format(prefix)][open_higher], name='Volume Open Higher', 
-                         marker=dict(color='Green')), secondary_y=True)
-    fig.add_trace(go.Bar(x=df[ts_col][~open_higher], y=df['{}Volume'.format(prefix)][~open_higher], name='Volume Open Lower', 
-                        marker=dict(color='Red')), secondary_y=True)
+    close_higher = (df['{}Open'.format(prefix)] < df['{}Close'.format(prefix)])
+    fig.add_trace(go.Bar(x=df[ts_col][close_higher], y=df['{}Volume'.format(prefix)][close_higher], 
+                         name='Volume (Close Higher)', marker=dict(color='Green')), secondary_y=True)
+    fig.add_trace(go.Bar(x=df[ts_col][~close_higher], y=df['{}Volume'.format(prefix)][~close_higher], 
+                         name='Volume (Close Lower)', marker=dict(color='Red')), secondary_y=True)
     fig['layout']['yaxis2'].update(title='Volume', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False, showgrid=False)
     # Add past transactions
     if df_txn.shape[0] > 0:
