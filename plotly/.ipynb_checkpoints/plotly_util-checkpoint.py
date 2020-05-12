@@ -89,7 +89,7 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
 
 
 def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candle.html', 
-                            highlight_times=[], highlight_period=pd.Timedelta(minutes=1), 
+                            highlight_times=[], highlight_period=pd.Timedelta(minutes=1), bb_cols=[],
                             price_senses=[], hovers=[], roll_means=[], df_txn=pd.DataFrame(), inline=False):
     # Original candlestick
     prefix = stock + '.' if len(stock) > 0 else stock
@@ -137,6 +137,14 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
             df['sma_{}'.format(period)] = df['{}Close'.format(prefix)].rolling(period).mean()
             fig.add_scatter(x=df[ts_col], y=df['sma_{}'.format(period)], mode='lines',
                             name='SMA {}'.format(period), marker=dict(size=3, color=colour), line=dict(width=2))
+            
+    # Add Bolinger Bands BB
+    if len(bb_cols) == 2:
+        fig.add_scatter(x=df[ts_col], y=df['BB Top'], mode='lines',
+                        name='BB Top', marker=dict(size=3), line=dict(width=2))
+        fig.add_scatter(x=df[ts_col], y=df['BB Bot'], mode='lines',
+                        name='BB Bot', marker=dict(size=3), line=dict(width=2))
+    
     # Highlight and annotate annoucements
     if len(highlight_times) > 0:
         colours = ["Navy" if price_sense == 1 else "LightSalmon" for price_sense in price_senses]
