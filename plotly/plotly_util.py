@@ -6,6 +6,7 @@ import plotly.graph_objs as go
 from datetime import datetime
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from plotly.subplots import make_subplots
+from scipy.signal import find_peaks
 
 def convert_buy_sell_prices(df, top_n=10):
 	# assumes df in the shape of one row per snapshot in time with 10 buy prices and 10 sell prices
@@ -88,29 +89,56 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
     pass
 
 
-def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candle.html', 
-                            highlight_times=[], highlight_period=pd.Timedelta(minutes=1), bb_cols=[],
-                            price_senses=[], hovers=[], roll_means=[], df_txn=pd.DataFrame(), inline=False):
-    # Original candlestick
+def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candle.html', peaks_troughs=False, rangeslider=True,
+                            rangeselector=False, bull_cols=[], bear_cols=[], text_cols=[],
+                            highlight_times=[], highlight_period=pd.Timedelta(minutes=1), bb_cols=[], legend_only=False,
+                            price_senses=[], hovers=[], roll_means=[], df_txn=pd.DataFrame(), inline=False, return_fig=False):
+    
     prefix = stock + '.' if len(stock) > 0 else stock
 
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    # fig = go.Figure(data=[go.Candlestick(x=df[ts_col],
-    #                     open=df['{}Open'.format(prefix)],
-    #                     high=df['{}High'.format(prefix)],
-    #                     low=df['{}Low'.format(prefix)],
-    #                     close=df['{}Close'.format(prefix)])])
+    if legend_only:
+        visible_param = 'legendonly'
+    else:
+        visible_param = True
+        
+    # Candlestick
     fig.add_trace(go.Candlestick(x=df[ts_col],
-                        open=df['{}Open'.format(prefix)],
-                        high=df['{}High'.format(prefix)],
-                        low=df['{}Low'.format(prefix)],
-                        close=df['{}Close'.format(prefix)]), secondary_y=False)
+                                 open=df['{}Open'.format(prefix)],
+                                 high=df['{}High'.format(prefix)],
+                                 low=df['{}Low'.format(prefix)],
+                                 close=df['{}Close'.format(prefix)],
+                                 visible=visible_param), secondary_y=False)
     fig.layout.update(title=title)
     fig['layout']['yaxis1'].update(title='Price ($)')
+    
+    # range slide and range selector
+    if not rangeslider:
+        fig.update_layout(xaxis_rangeslider_visible=False)
+#     if rangeselector: # for daily data
+#         fig.update_xaxes(
+#             rangeslider_visible=True,
+#             rangeselector=dict(
+#                 buttons=list([
+#                     dict(count=1, label="1m", step="month", stepmode="backward"),
+#                     dict(count=6, label="6m", step="month", stepmode="backward"),
+#                     dict(count=1, label="YTD", step="year", stepmode="todate"),
+#                     dict(count=1, label="1y", step="year", stepmode="backward"),
+#                     dict(step="all")
+#                     ])
+#                 )
+#         )
+    
+    # Add Bolinger Bands BB
+    if len(bb_cols) == 2:
+        fig.add_scatter(x=df[ts_col], y=df['BB Top'], mode='lines', marker=dict(size=1, color="darkturquoise"), name='BB Top')
+        fig.add_scatter(x=df[ts_col], y=df['BB Bot'], mode='none', name='BB Bot', fill='tonexty')
+    
     # Add closing price as line 
-    fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers',
+    fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers', hoverinfo='all', text=text_cols,
                     name='Closing Price', marker=dict(size=3, color="Cyan"), line = dict(width=1))
+        
     # Add volumes data
     # fig.add_bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume')
     if 'Volume' in df.columns.tolist():
@@ -120,6 +148,7 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
         fig.add_trace(go.Bar(x=df[ts_col][~close_higher], y=df['{}Volume'.format(prefix)][~close_higher], 
                              name='Volume (Close Lower)', marker=dict(color='Red')), secondary_y=True)
         fig['layout']['yaxis2'].update(title='Volume', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False, showgrid=False)
+        
     # Add past transactions
     if df_txn.shape[0] > 0:
         df_txn_b = df_txn[df_txn.action == 'B'].reset_index(drop=True)
@@ -138,13 +167,16 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
             fig.add_scatter(x=df[ts_col], y=df['sma_{}'.format(period)], mode='lines',
                             name='SMA {}'.format(period), marker=dict(size=3, color=colour), line=dict(width=2))
             
-    # Add Bolinger Bands BB
-    if len(bb_cols) == 2:
-        fig.add_scatter(x=df[ts_col], y=df['BB Top'], mode='lines',
-                        name='BB Top', marker=dict(size=3), line=dict(width=2))
-        fig.add_scatter(x=df[ts_col], y=df['BB Bot'], mode='lines',
-                        name='BB Bot', marker=dict(size=3), line=dict(width=2))
-    
+    # Add peaks an troughs
+    if peaks_troughs:
+        prominence = .01 * df['{}Close'.format(prefix)].mean()
+        peak_indices = find_peaks(df['{}Close'.format(prefix)], prominence=prominence, distance=20)[0]
+        trough_indices = find_peaks(-df['{}Close'.format(prefix)], prominence=prominence, distance=20)[0]
+        fig.add_scatter(x=df[ts_col][peak_indices], y=[df['{}Close'.format(prefix)][j] for j in peak_indices], mode='markers',
+                        name='Peaks', marker=dict(size=5, color="Red", symbol='cross'))
+        fig.add_scatter(x=df[ts_col][trough_indices], y=[df['{}Close'.format(prefix)][j] for j in trough_indices], mode='markers',
+                        name='Troughs', marker=dict(size=5, color="Green", symbol='cross'))
+        
     # Highlight and annotate annoucements
     if len(highlight_times) > 0:
         colours = ["Navy" if price_sense == 1 else "LightSalmon" for price_sense in price_senses]
@@ -155,7 +187,7 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                     yref="paper",
                     x0=highlight_time,
                     y0=0,
-                    x1=highlight_time + highlight_period,
+                    x1=highlight_time,
                     y1=1,
                     fillcolor=colour,
                     opacity=0.5,
@@ -171,15 +203,56 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                      showarrow=False,
                      ax=0,
                      ay=20) for highlight_time, hover in zip(highlight_times, hovers)])
-
-    if inline:
-        init_notebook_mode()
-        iplot(fig, filename=filename)
+        
+    # highlight bullish candlestick patterns
+    if len(bull_cols) > 0:
+        sum_indicators = df[bull_cols].sum(axis=1)
+        highlight_ts = df[ts_col][sum_indicators > 0].tolist()
+        highlight_y = df['Close'][sum_indicators > 0].tolist()
+        highlight_size = (10 * sum_indicators[sum_indicators > 0]).tolist()
+        fig.add_scatter(x=highlight_ts, y=highlight_y, mode='markers',
+                        name='Bullish Indicators',
+                        marker=dict(size=highlight_size, color="Green", symbol='square-dot'))
+        
+    if len(bear_cols) > 0:
+        sum_indicators = df[bear_cols].sum(axis=1)
+        highlight_ts = df[ts_col][sum_indicators > 0].tolist()
+        highlight_y = df['Close'][sum_indicators > 0].tolist()
+        highlight_size = (10 * sum_indicators[sum_indicators > 0]).tolist()
+        fig.add_scatter(x=highlight_ts, y=highlight_y, mode='markers',
+                        name='Bearish Indicators', 
+                        marker=dict(size=highlight_size, color="Red", symbol='square-dot'))
+        
+    # show crosshair
+    fig['layout']['xaxis'].update(showspikes=True, spikedash = 'solid', spikethickness=1)
+    fig['layout']['yaxis'].update(showspikes=True, spikedash = 'solid', spikethickness=1)
+    
+    fig.update_layout(
+#         autosize=False,
+        margin=dict(
+            l=10,
+            r=10,
+            b=10,
+            t=40,
+            pad=5
+        ),
+    )
+    
+    fig.update_layout(hovermode="x")
+    
+    
+    if return_fig:
+        return fig
     else:
-        plot(fig, filename=filename)
+        if inline:
+            init_notebook_mode()
+            iplot(fig, filename=filename)
+        else:
+            plot(fig, filename=filename)
+    
 
-
-def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, filename='depth-chart.html', inline=False):
+def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_list, 
+                     filename='depth-chart.html', inline=False, return_fig=False):
     # # df has type, price and volume columns
     # df_buy = df[df['type'] == 'buy'].sort_values('price', ascending=False).reset_index(drop=True)
     # df_sell = df[df['type'] == 'sell'].sort_values('price', ascending=True).reset_index(drop=True)
@@ -188,6 +261,8 @@ def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_lis
     # sell_price_list = df_sell['price'].tolist()
     # buy_vol_list = df_buy['volume'].cumsum().tolist()
     # sell_vol_list = df_sell['volume'].cumsum().tolist()
+    buy_price_list, buy_vol_list, sell_price_list, sell_vol_list = \
+        np.array(buy_price_list), np.array(buy_vol_list), np.array(sell_price_list), np.array(sell_vol_list)
 
     buy_indx = np.argsort(buy_price_list)[::-1]
     sell_indx = np.argsort(sell_price_list)
@@ -209,12 +284,34 @@ def plot_depth_chart(buy_price_list, buy_vol_list, sell_price_list, sell_vol_lis
                              fill='tozeroy',
                              mode='lines+markers',
                              name='ask prices'))
-    if inline:
-        init_notebook_mode(connected=True)
-        iplot(fig, filename=filename)
+    
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'linear',
+        dtick = 0.01
+        )
+    )
+    
+    fig.update_layout(
+#         autosize=False,
+        margin=dict(
+            l=10,
+            r=10,
+            b=10,
+            t=10,
+            pad=1
+        )
+    )
+    
+    if return_fig:
+        return fig
     else:
-        plot(fig, filename=filename)
-        
+        if inline:
+            init_notebook_mode(connected=True)
+            iplot(fig, filename=filename)
+        else:
+            plot(fig, filename=filename)
+
         
 def plot_moving_depth_chart(df, filename='moving-depth-chart.html', inline=False):
     # Takes in a standard df from commsec website
