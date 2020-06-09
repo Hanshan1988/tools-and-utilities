@@ -90,7 +90,7 @@ def plot_3d_scatter(df, x, y, z, filename='3d-scatter.html', inline=False):
 
 
 def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='candle.html', peaks_troughs=False, rangeslider=True,
-                            rangeselector=False, bull_cols=[], bear_cols=[], text_cols=[],
+                            price_norm_col=None, rangeselector=False, bull_cols=[], bear_cols=[], text_cols=[],
                             highlight_times=[], highlight_period=pd.Timedelta(minutes=1), bb_cols=[], legend_only=False,
                             price_senses=[], hovers=[], roll_means=[], df_txn=pd.DataFrame(), inline=False, return_fig=False):
     
@@ -138,6 +138,9 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
     # Add closing price as line 
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers', hoverinfo='all', text=text_cols,
                     name='Closing Price', marker=dict(size=3, color="Cyan"), line = dict(width=1))
+    # Add another trace for prime norm
+    if price_norm_col is not None:
+        fig.add_trace(go.Scatter(x=df[ts_col], y=df[price_norm_col], name="Closing Price Normed", yaxis="y2"))
         
     # Add volumes data
     # fig.add_bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume')
@@ -148,6 +151,20 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
         fig.add_trace(go.Bar(x=df[ts_col][~close_higher], y=df['{}Volume'.format(prefix)][~close_higher], 
                              name='Volume (Close Lower)', marker=dict(color='Red')), secondary_y=True)
         fig['layout']['yaxis2'].update(title='Volume', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False, showgrid=False)
+        
+#     fig.update_layout(
+#     yaxis=dict(
+#         title="Price",
+#     ),
+#     yaxis2=dict(
+#         title="Price Normed",
+#         anchor="free",
+#         overlaying="y",
+#         side="left",
+#         position=0.02,
+#         range=[-0.8, 1.2],
+#         autorange=False
+#     ))
         
     # Add past transactions
     if df_txn.shape[0] > 0:
