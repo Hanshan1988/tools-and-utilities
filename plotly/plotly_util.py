@@ -140,37 +140,40 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                     name='Closing Price', marker=dict(size=3, color="Cyan"), line = dict(width=1))
     # Add another trace for prime norm
     if price_norm_col is not None:
-        # fig.add_trace(go.Scatter(x=df[ts_col], y=df[price_norm_col], name="Closing Price Normed", yaxis="y2"))
-        fig.add_trace(go.Scatter(x=df[ts_col], y=df[price_norm_col], name="Closing Price Normed"), secondary_y=False)
+        fig.add_trace(go.Scatter(x=df[ts_col], y=df[price_norm_col], name="Closing Price Normed", yaxis="y2", visible=visible_param))
+        # fig.add_trace(go.Scatter(x=df[ts_col], y=df[price_norm_col], name="Closing Price Normed"), secondary_y=True)
+        # fig.update_layout(
+        #     yaxis2=dict(
+        #     title="Price Normed",
+        #     anchor="free",
+        #     side="right",
+        #     range=[-0.8, 1.2],
+        #     autorange=False
+        # ))
+        fig['layout']['yaxis2'].update(title='Volume', range=[.98, 1.02], autorange=False, showgrid=False)
 
     # Add weighted average price
     if weighted_col is not None:
         fig.add_trace(go.Scatter(x=df[ts_col], y=df[weighted_col], name="Weighted Price"), secondary_y=False)
 
-        
     # Add volumes data
     # fig.add_bar(x=df[ts_col], y=df['{}Volume'.format(prefix)], name='Volume', secondary_y=True)
     if 'Volume' in df.columns.tolist():
         close_higher = (df['{}Open'.format(prefix)] < df['{}Close'.format(prefix)])
         fig.add_trace(go.Bar(x=df[ts_col][close_higher], y=df['{}Volume'.format(prefix)][close_higher], 
-                             name='Volume (Close Higher)', marker=dict(color='Green')), secondary_y=True)
+                             name='Volume (Close Higher)', marker=dict(color='Green'), yaxis='y3'))
         fig.add_trace(go.Bar(x=df[ts_col][~close_higher], y=df['{}Volume'.format(prefix)][~close_higher], 
-                             name='Volume (Close Lower)', marker=dict(color='Red')), secondary_y=True)
-        fig['layout']['yaxis2'].update(title='Volume', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False, showgrid=False)
-        
-#     fig.update_layout(
-#     yaxis=dict(
-#         title="Price",
-#     ),
-#     yaxis2=dict(
-#         title="Price Normed",
-#         anchor="free",
-#         overlaying="y",
-#         side="left",
-#         position=0.02,
-#         range=[-0.8, 1.2],
-#         autorange=False
-#     ))
+                             name='Volume (Close Lower)', marker=dict(color='Red'), yaxis='y3'))
+        # fig['layout']['yaxis3'].update(title='Volume', range=[0, df['{}Volume'.format(prefix)].max() * 10], autorange=False, showgrid=False)
+        fig.update_layout(
+            yaxis3=dict(
+            title="Volume",
+            anchor="free",
+            overlaying="y",
+            side="right",
+            range=[0, df['{}Volume'.format(prefix)].max() * 10],
+            autorange=False
+        ))
         
     # Add past transactions
     if df_txn.shape[0] > 0:
