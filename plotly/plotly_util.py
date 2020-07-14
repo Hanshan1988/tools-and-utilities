@@ -94,6 +94,7 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
                             highlight_times=[], highlight_period=pd.Timedelta(minutes=1), bb_cols=[], legend_only=False,
                             price_senses=[], hovers=[], roll_means=[], df_txn=pd.DataFrame(), inline=False, return_fig=False):
     
+    lb0, lb1, lb2 = roll_means[0], roll_means[1], roll_means[2]
     prefix = stock + '.' if len(stock) > 0 else stock
 
     # Create figure with secondary y-axis
@@ -132,8 +133,8 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
     
     # Add Bolinger Bands BB
     if len(bb_cols) == 2:
-        fig.add_scatter(x=df[ts_col], y=df['BB Top'], mode='lines', marker=dict(size=1, color="darkturquoise"), name='BB Top')
-        fig.add_scatter(x=df[ts_col], y=df['BB Bot'], mode='none', name='BB Bot', fill='tonexty')
+        fig.add_scatter(x=df[ts_col], y=df['BB Top'], mode='lines', marker=dict(size=1, color="darkturquoise"), name='BB Top ({})'.format(lb1))
+        fig.add_scatter(x=df[ts_col], y=df['BB Bot'], mode='none', name='BB Bot ({})'.format(lb1), fill='tonexty')
     
     # Add closing price as line 
     fig.add_scatter(x=df[ts_col], y=df['{}Close'.format(prefix)], mode='lines+markers', hoverinfo='all', text=text_cols,
@@ -189,8 +190,8 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
     if len(roll_means) > 0:
         colour = ['red', 'green', 'blue']
         for period, colour in zip(roll_means, colour):
-            df['sma_{}'.format(period)] = df['{}Close'.format(prefix)].rolling(period).mean()
-            fig.add_scatter(x=df[ts_col], y=df['sma_{}'.format(period)], mode='lines',
+            # df['sma{}'.format(period)] = df['{}Close'.format(prefix)].rolling(period).mean()
+            fig.add_scatter(x=df[ts_col], y=df['sma{}'.format(period)], mode='lines',
                             name='SMA {}'.format(period), marker=dict(size=3, color=colour), line=dict(width=2))
             
     # Add peaks an troughs
