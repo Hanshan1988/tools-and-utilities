@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 from dateutil.rrule import rrule, DAILY
 
 def compare_distr(l_values, l_label, num_bins=100, xrange=[0, 1], norm_hist=True):
@@ -14,21 +15,19 @@ def compare_distr(l_values, l_label, num_bins=100, xrange=[0, 1], norm_hist=True
     plt.xlim(xrange[0], xrange[1])
     plt.show()
 
-def compare_feature_distr(base_df, new_df, features, psi_threshold=0.1):
+def compare_feature_distr(base_df, new_df, features, ks_threshold=0.05, ignore_zeros_nulls=False):
     # compare distributions of features across two data frames
     # can leverage psi to quickly find out which feature are very different, two groups only
-    df_psi_all = pd.DataFrame()
-    l_psi = []
+    l_p_values = []
     for feature in features:
         base_feat_values = base_df[feature].values
         new_feat_values = new_df[feature].values
-        psi, df_psi = get_psi(base_feat_values, new_feat_values, return_df=True)
-        df_psi['feature'] = feature
-        df_psi_all = df_psi_all.append(df_psi, ignore_index=True)
-        l_psi.append(psi)
-        if psi > psi_threshold:
+        ks_stat, p_value = stats.ks_2samp(base_feat_values, new_feat_values)
+        l_p_values.append(p_value)
+        if p_value < ks_threshold:
             print(f'The feature {feature} exhibits different distributions between data sets')
-    return l_psi, df_psi_all
+    df = pd.DataFrame('feature': features, 'ks_p_value': l_p_values)
+    return df
 
 def group_by_metrics():
     # groupby and compare metrics
