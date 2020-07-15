@@ -26,7 +26,7 @@ def compare_feature_distr(base_df, new_df, features, ks_threshold=0.05, ignore_z
         l_p_values.append(p_value)
         if p_value < ks_threshold:
             print(f'The feature {feature} exhibits different distributions between data sets')
-    df = pd.DataFrame('feature': features, 'ks_p_value': l_p_values)
+    df = pd.DataFrame({'feature': features, 'ks_p_value': l_p_values})
     return df
 
 def group_by_metrics():
