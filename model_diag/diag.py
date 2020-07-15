@@ -17,7 +17,7 @@ def compare_distr(l_values, l_label, num_bins=100, xrange=[0, 1], norm_hist=True
 def compare_feature_distr(base_df, new_df, features, psi_threshold=0.1):
     # compare distributions of features across two data frames
     # can leverage psi to quickly find out which feature are very different, two groups only
-    df_psi_all = pd.Dataframe()
+    df_psi_all = pd.DataFrame()
     l_psi = []
     for feature in features:
         base_feat_values = base_df[feature].values
