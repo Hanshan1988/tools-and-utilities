@@ -265,6 +265,16 @@ def plot_candlestick_single(df, stock='', title='', ts_col='Date', filename='can
         ),
         hovermode='x'
     )
+    
+    # hide weekends and holidays
+    fig.update_xaxes(
+    rangebreaks=[
+        dict(bounds=["sat", "mon"]), # hide weekends
+        dict(values=["2015-12-25", "2016-01-01", "2016-12-25", "2017-01-01",
+                     "2017-12-25", "2018-01-01", "2018-12-25", "2019-01-01",
+                     "2019-12-25", "2020-01-01", "2020-12-25", "2021-01-01"])  # hide Christmas and New Year's
+    ]
+)
 
 
     if return_fig:
