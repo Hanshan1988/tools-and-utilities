@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-
+import plotly.express as px
+import plotly.graph_objs as go
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
     
 # calculate gains
 def CalculateGains(indata = [], target_name = "", pred_name = "", exposure_weights = "", 
@@ -386,3 +388,135 @@ def plotLiftChart(lift: pd.DataFrame):
     plt.title('Lift Chart for Online Pick UP Model')
     plt.savefig('PickUp.png', dpi=199)
     plt.show()
+    
+def find_min_max_rng(df, val_col, normalise=False):
+    # find the min and max values
+    min_val = df[val_col].min() if not normalise else 0
+    max_val = df[val_col].max() if not normalise else 1
+    rng = max_val - min_val
+    return min_val, max_val, rng
+
+def get_interval(df, val_col, min_val, max_val, bins):
+    cut = pd.cut(np.array([min_val, max_val]), bins, retbins=True)
+    cut_intervals = cut[1]
+    bins_cut = pd.IntervalIndex.from_breaks(cut_intervals)
+    s_interval = pd.cut(df[val_col], bins_cut)
+    return s_interval
+    
+def prep_data_for_hist(df, l_groupby_col, plot_col, cutoff=0.95, x_normalize=True, n_bins=100):
+    """
+    Find the distribution of values for plot_col when grouped by l_groupby_col
+    It's often hard to plot when we have more than 10k points
+    if normalize: theoretical min is zero and max is one
+    """
+    # remove null values in plot_col
+    df = df.dropna(subset=[plot_col]).reset_index(drop=True)
+
+    # find the min and max values
+    normalise = True if df[plot_col].max() <= 1 and df[plot_col].min() >= 0 else False
+    min_val, max_val, rng = find_min_max_rng(df, plot_col, normalise)
+    precision = rng / n_bins
+    s_interval = get_interval(df, plot_col, min_val, max_val, n_bins) # initial bins for cut-off
+    
+    cut = pd.cut(np.array([min_val, max_val]), n_bins, retbins=True)
+    cut_intervals = cut[1]
+    bins = pd.IntervalIndex.from_breaks(cut_intervals)
+    
+    df['interval_right'] = [i.right for i in s_interval.values]
+    l_new_groupby = l_groupby_col + ['interval_right']
+    df_plot = df.groupby(l_new_groupby)[plot_col].count().reset_index()
+
+    # rename columns
+    df_plot.columns = l_groupby_col + ['value', 'count']
+
+    df_plot_norm = (df_plot.groupby(l_groupby_col + ['value'])['count'].apply(lambda x: x.sum()) /  \
+        df_plot.groupby(l_groupby_col)['count'].apply(lambda x: x.sum())).reset_index()
+    df_plot_norm['cum_count_norm'] = df_plot_norm.groupby(l_groupby_col)['count'].cumsum()
+    df_plot_norm_cut = df_plot_norm[df_plot_norm['cum_count_norm'] <= cutoff]
+
+    min_val, max_val, rng = find_min_max_rng(df_plot_norm_cut, 'value', False)
+    min_val = math.floor(min_val * 10)/10.0
+    max_val = math.ceil(max_val * 100)/100.0 + .01
+
+    df_cut = df[(df[plot_col] >= min_val) & (df[plot_col] <= max_val)].reset_index(drop=True)
+    s_interval = get_interval(df_cut, plot_col, min_val, max_val, n_bins) # check if use n_bins or bins?
+    df_cut['interval_right'] = [i.right for i in s_interval.values]
+    df_cut_plot = df_cut.groupby(l_new_groupby)[plot_col].count().reset_index()
+    df_cut_plot.columns = l_groupby_col + ['value', 'count']
+    df_cut_plot_norm = (df_cut_plot.groupby(l_groupby_col + ['value'])['count'].apply(lambda x: x.sum()) /  \
+        df_cut_plot.groupby(l_groupby_col)['count'].apply(lambda x: x.sum())).reset_index()
+    return df_cut_plot_norm
+
+def plot_hist_comp(df_plot, l_groupby_col, x_l=None, x_r=None, y_l=None, y_r=None,
+                   title='Score Comparison',filename='hist_comp.html'):
+    groupby_str = '-'.join(l_groupby_col)
+    if len(l_groupby_col) > 1:
+        df_plot['groupby'] = df_plot[l_groupby_col].apply(lambda row: '|'.join(row.values.astype(str)), axis=1)
+    else:
+        df_plot['groupby'] = df_plot[l_groupby_col]
+    uniq_grp = list(set(df_plot['groupby'].values))
+    data = [go.Bar(name=grp, 
+                   x=df_plot[df_plot[l_groupby_col[0]] == grp]['value'],
+                   y=df_plot[df_plot[l_groupby_col[0]] == grp]['count']) for grp in uniq_grp]
+
+    if x_l is None:
+        x_l = round(df_plot['value'].min(), 2)
+    if x_r is None:
+        x_r = round(df_plot['value'].max(), 2)
+    if y_l is None:
+        y_l = 0
+    if y_r is None:
+        y_r = 1
+
+    fig = go.Figure(data=data, layout_xaxis_range=[x_l, x_r], layout_yaxis_range=[y_l, y_r])
+    fig.update_layout(
+        title=title,
+        xaxis_tickfont_size=14,
+        yaxis=dict(
+            title='Count',
+            titlefont_size=16,
+            tickfont_size=14,
+        ),
+        legend=dict(
+            x=0,
+            y=1.0,
+            bgcolor='rgba(255, 255, 255, 0)',
+            bordercolor='rgba(255, 255, 255, 0)'
+        ),
+        barmode='group',
+        bargap=0.15, # gap between bars of adjacent location coordinates.
+        bargroupgap=0.1 # gap between bars of the same location coordinate.
+    )
+
+    ## NEED TO NORMALISE BY COUNT
+    plot(fig, filename=filename)
+
+
+def plot_audience_comp(data, l_groupby_col, l_score_col, inc_feat_cols=True, date_prefix='2021-04-08'):
+    """
+    1. total number of plots = number of score columns + number of feature columns
+    2. number of groups per plot = number of unique combinations in groupby cols
+    """
+    groupby_str = '-'.join(l_groupby_col)
+    
+    df_summ = data.groupby(l_groupby_col)[l_score_col].agg(['min', 'mean', 'median', 'max'])
+    
+    if len(l_groupby_col) > 1:
+        data['combined_groupby'] = data[l_groupby_col].apply(lambda row: '|'.join(row.values.astype(str)), axis=1)
+    else:
+        data['combined_groupby'] = data[l_groupby_col]
+    
+    # 2D Density contour
+    for score_col in l_score_col:
+        fig = px.histogram(data, x=score_col, color="combined_groupby", marginal="rug", # can be `box`, `violin`
+                           histnorm='probability') # hover_data=df.columns, 
+#         fig = px.histogram(df_samp, x=score_col, color="selection_group", 
+#                    marginal="rug", # can be `box`, `violin`
+#                    histnorm='probability density', facet_row="dataset_name", 
+#                    title=f'{date_prefix} {score_col}') # hover_data=df.columns, 
+        # Overlay both histograms
+        fig.update_layout(barmode='overlay')
+        # Reduce opacity to see both histograms
+        fig.update_traces(opacity=0.5)
+        plot(fig, filename=f'{date_prefix}_hist_{groupby_str}_{score_col}.html')
+    return None
