@@ -41,8 +41,18 @@ def get_counts_proportions(scores, num_bins=10):
 
     :return: Array of proportions
     """
+    min_val = np.min(scores)
+    max_val = np.max(scores)
+    
+    if min_val >= 0 and min_val <= 1 and max_val >=0 and max_val <=1:
+        min_rng = 0
+        max_rng = 1
+    else:
+        min_rng = min_val
+        max_rng = max_val
+        
     try:
-        bins_range = np.linspace(0, 1, num_bins + 1)
+        bins_range = np.linspace(min_rng, max_rng, num_bins + 1)
         counts = np.histogram(scores, bins=bins_range)[0]
         props = counts / counts.sum()
         return props
